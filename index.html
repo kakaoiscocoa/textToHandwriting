@@ -563,10 +563,10 @@
 
                         ctx.save();
                         ctx.font = `${fSize + sizeJitter}px '${currentFontName}', sans-serif`;
-                        ctx.translate(cursorX + jitterX, baseline + jitterY);
+                        ctx.translate(cursorX, baseline + jitterY);
                         ctx.rotate(angle);
                         ctx.fillText(char, 0, 0);
-                        cursorX += ctx.measureText(char).width;
+                        cursorX += ctx.measureText(char).width + jitterX;
                         ctx.restore();
                     }
 
