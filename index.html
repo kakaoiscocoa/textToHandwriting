@@ -532,7 +532,7 @@
           const js = parseFloat(jitterSize.value);  // font-size jitter
           const ja = parseFloat(jitterAngle.value) * (Math.PI / 180); // degrees → radians
 
-          const lineStartShift = (Math.random() - 0.5) * (jp * 2);
+          const lineStartShift = (Math.random() - 0.5) * (jp * 4);
           let cursorX = startX + lineStartShift;
 
           for (let c = 0; c < line.length; c++) {
