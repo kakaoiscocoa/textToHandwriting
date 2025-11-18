@@ -567,42 +567,35 @@
                     const lineJY = parseFloat(lineJitterY.value);
                     const lineJA = parseFloat(lineJitterAngle.value) * (Math.PI / 180);
 
+                    // --- NEW: per-line jitter (NO canvas rotation) ---
                     const jitterLineX = (Math.random() - 0.5) * lineJX;
                     const jitterLineY = (Math.random() - 0.5) * lineJY;
-                    const jitterLineAngle = (Math.random() - 0.5) * lineJA;
 
-                    // Our base position for the entire line
-                    let lineX = startX + jitterLineX;
-                    let lineBaseline = cursorY + jitterLineY;
+                    // baseline position for this line
+                    const lineX = startX + jitterLineX;
+                    const lineBaseline = cursorY + jitterLineY;
 
-                    // Apply full-line rotation
-                    ctx.save();
-                    ctx.translate(lineX, lineBaseline);
-                    ctx.rotate(jitterLineAngle);
+                    // draw characters normally using full canvas coordinates
+                    let cursorX = lineX;
 
-                    // After rotation, we draw characters as offsets from (0,0)
-                    let cursorXLocal = 0;
                     for (let c = 0; c < line.length; c++) {
                         const char = line[c];
-
                         const jitterX = (Math.random() - 0.5) * jp;
                         const jitterY = (Math.random() - 0.5) * jp;
                         const sizeJitter = (Math.random() - 0.5) * js;
                         const angle = (Math.random() - 0.5) * ja;
 
-                        const charFontSize = fSize + sizeJitter;
-                        ctx.font = `${charFontSize}px '${currentFontName}', sans-serif`;
-
-                        const charWidth = ctx.measureText(char).width;
-
                         ctx.save();
-                        ctx.translate(cursorXLocal + jitterX, jitterY);
+                        ctx.translate(cursorX + jitterX, lineBaseline + jitterY);
                         ctx.rotate(angle);
-                        ctx.fillText(char, 0, 0);
-                        ctx.restore();
 
-                        cursorXLocal += charWidth;
+                        ctx.font = `${fSize + sizeJitter}px '${currentFontName}', sans-serif`;
+                        ctx.fillText(char, 0, 0);
+
+                        cursorX += ctx.measureText(char).width;
+                        ctx.restore();
                     }
+
                     ctx.restore();
 
                 }
