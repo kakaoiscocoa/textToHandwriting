@@ -254,7 +254,7 @@
                 <input id="lineJitterY" type="range" min="0" max="20" step="0.5" value="2" />
                 <div class="val" id="lineJitterYVal">2px</div>
             </div>
-            
+
             <div class="footer-row">
                 <button id="renderBtn" class="btn">Re-render</button>
                 <button id="downloadBtn" class="btn secondary">Download PNG</button>
@@ -693,11 +693,6 @@
                 lineJitterYVal.textContent = lineJitterY.value + 'px';
                 render();
             });
-            lineJitterAngle.addEventListener('input', function () {
-                lineJitterAngleVal.textContent = lineJitterAngle.value + '°';
-                render();
-            });
-
 
         })();
     </script>
