@@ -257,7 +257,7 @@
 
             <label>Line angle jitter (degrees)</label>
             <div class="control">
-                <input id="lineJitterAngle" type="range" min="0" max="3" step="0.05" value="0.4" />
+                <input id="lineJitterAngle" type="range" min="0" max="7" step="0.05" value="0.4" />
                 <div class="val" id="lineJitterAngleVal">0.4°</div>
             </div>
 
@@ -552,53 +552,33 @@
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
 
-                    if (line === '') {
-                        cursorY += lineHeightPx;
-                        continue;
-                    }
+                    // jitter per line
+                    const jitterLineY = (Math.random() - 0.5) * parseFloat(lineJitterY.value);
 
-                    // jitter intensities from sliders
-                    const jp = parseFloat(jitterPos.value);   // position jitter
-                    const js = parseFloat(jitterSize.value);  // font-size jitter
-                    const ja = parseFloat(jitterAngle.value) * (Math.PI / 180); // degrees → radians
-
-                    // --- NEW: per-line jitter ---
-                    const lineJX = parseFloat(lineJitterX.value);
-                    const lineJY = parseFloat(lineJitterY.value);
-                    const lineJA = parseFloat(lineJitterAngle.value) * (Math.PI / 180);
-
-                    // --- NEW: per-line jitter (NO canvas rotation) ---
-                    const jitterLineX = (Math.random() - 0.5) * lineJX;
-                    const jitterLineY = (Math.random() - 0.5) * lineJY;
-
-                    // baseline position for this line
-                    const lineX = startX + jitterLineX;
                     const lineBaseline = cursorY + jitterLineY;
 
-                    // draw characters normally using full canvas coordinates
-                    let cursorX = lineX;
+                    let cursorX = startX + (Math.random() - 0.5) * parseFloat(lineJitterX.value);
 
                     for (let c = 0; c < line.length; c++) {
                         const char = line[c];
-                        const jitterX = (Math.random() - 0.5) * jp;
-                        const jitterY = (Math.random() - 0.5) * jp;
-                        const sizeJitter = (Math.random() - 0.5) * js;
-                        const angle = (Math.random() - 0.5) * ja;
+                        const charJitterX = (Math.random() - 0.5) * parseFloat(jitterPos.value);
+                        const charJitterY = (Math.random() - 0.5) * parseFloat(jitterPos.value);
+                        const charSize = fSize + (Math.random() - 0.5) * parseFloat(jitterSize.value);
+                        const charAngle = (Math.random() - 0.5) * parseFloat(jitterAngle.value) * Math.PI / 180;
 
                         ctx.save();
-                        ctx.translate(cursorX + jitterX, lineBaseline + jitterY);
-                        ctx.rotate(angle);
-
-                        ctx.font = `${fSize + sizeJitter}px '${currentFontName}', sans-serif`;
+                        ctx.font = `${charSize}px '${currentFontName}', sans-serif`;
+                        ctx.translate(cursorX + charJitterX, lineBaseline + charJitterY);
+                        ctx.rotate(charAngle);
                         ctx.fillText(char, 0, 0);
-
                         cursorX += ctx.measureText(char).width;
                         ctx.restore();
                     }
 
-                    ctx.restore();
-
+                    // move to next line
+                    cursorY += lineHeightPx;
                 }
+
             }
 
             // Download function
