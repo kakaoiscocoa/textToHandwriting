@@ -1,0 +1,679 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Handwritten Text Composer</title>
+  <style>
+    :root {
+      --panel-bg: #f7fafc;
+      --accent: #2563eb;
+      --muted: #6b7280;
+      --card: #ffffff;
+      --radius: 10px;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #eef2ff 0%, #ffffff 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 28px;
+      box-sizing: border-box;
+      color: #111827;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1100px;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 20px;
+    }
+
+    .panel {
+      background: var(--panel-bg);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
+    }
+
+    h1 {
+      font-size: 18px;
+      margin: 0 0 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    small {
+      color: var(--muted);
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      margin-top: 12px;
+      color: #0f172a;
+    }
+
+    input[type="file"] {
+      display: block;
+      margin-top: 8px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .row>* {
+      flex: 1;
+    }
+
+    .small {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .control {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .control input[type="range"] {
+      width: 100%;
+    }
+
+    .control .val {
+      width: 60px;
+      text-align: right;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .btn {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      border-radius: 8px;
+      padding: 8px 12px;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      font-weight: 600;
+    }
+
+    .btn.secondary {
+      background: transparent;
+      border: 1px solid #e6edf8;
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    .canvas-wrap {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 8px 30px rgba(2, 6, 23, 0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 480px;
+    }
+
+    .canvas-area {
+      border: 1px dashed #e6eefc;
+      border-radius: 8px;
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #fff 0%, #fbfdff 100%);
+      padding: 10px;
+    }
+
+    canvas {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .note {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .footer-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    @media (max-width:980px) {
+      .container {
+        grid-template-columns: 1fr;
+        padding-bottom: 40px;
+      }
+    }
+  </style>
+
+</head>
+
+<body>
+  <div class="container">
+    <aside class="panel" aria-labelledby="title">
+      <h1 id="title">✍️ Handwritten Text Composer</h1>
+      <small>Upload a handwriting font (.otf or .ttf) and a base image (notebook paper). Adjust text and export
+        PNG.</small><label>1) Upload handwriting font (.otf / .ttf)</label>
+      <input id="fontFile" type="file" accept=".otf, .ttf, font/otf, font/ttf" />
+
+      <label>2) Upload base image (PNG / JPEG)</label>
+      <input id="imageFile" type="file" accept="image/png, image/jpeg" />
+
+      <label for="text">Text</label>
+      <textarea id="text" rows="6"
+        style="width:100%; padding:8px; border-radius:8px; border:1px solid #e6eefc; resize:vertical;"
+        placeholder="Type your text here. Use newlines (\n) to create paragraphs."></textarea>
+      <div class="note">Tip: paste text from another app. Newlines are preserved.</div>
+
+      <label>Font size <span class="small" id="fontSizeLabel"></span></label>
+      <div class="control">
+        <input id="fontSize" type="range" min="12" max="120" value="36" />
+        <div class="val" id="fontSizeVal">36px</div>
+      </div>
+
+      <label>Line height <span class="small" id="lineHeightLabel"></span></label>
+      <div class="control">
+        <input id="lineHeight" type="range" min="0.8" max="2.2" step="0.01" value="1.2" />
+        <div class="val" id="lineHeightVal">1.20</div>
+      </div>
+
+      <label>Text color</label>
+      <div class="row">
+        <input id="textColor" type="color" value="#222222" />
+        <input id="opacity" type="range" min="0.1" max="1" step="0.01" value="1" />
+      </div>
+
+      <label>X offset (px)</label>
+      <div class="control">
+        <input id="xOffset" type="range" min="-1000" max="1000" value="40" />
+        <div class="val" id="xOffsetVal">40</div>
+      </div>
+
+      <label>Y offset (px)</label>
+      <div class="control">
+        <input id="yOffset" type="range" min="-1000" max="1000" value="40" />
+        <div class="val" id="yOffsetVal">40</div>
+      </div>
+
+      <label>Maximum text width (% of canvas)</label>
+      <div class="control">
+        <input id="maxWidthPct" type="range" min="10" max="100" value="80" />
+        <div class="val" id="maxWidthPctVal">80%</div>
+      </div>
+      <label>Letter position jitter (px)</label>
+      <div class="control">
+        <input id="jitterPos" type="range" min="0" max="4" step="0.1" value="1.4" />
+        <div class="val" id="jitterPosVal">1.4px</div>
+      </div>
+
+      <label>Letter size jitter (px)</label>
+      <div class="control">
+        <input id="jitterSize" type="range" min="0" max="4" step="0.1" value="0.8" />
+        <div class="val" id="jitterSizeVal">0.8px</div>
+      </div>
+
+      <label>Letter angle jitter (degrees)</label>
+      <div class="control">
+        <input id="jitterAngle" type="range" min="0" max="5" step="0.1" value="1.7" />
+        <div class="val" id="jitterAngleVal">1.7°</div>
+      </div>
+
+      <div class="footer-row">
+        <button id="renderBtn" class="btn">Re-render</button>
+        <button id="downloadBtn" class="btn secondary">Download PNG</button>
+      </div>
+
+      <div style="margin-top:12px; font-size:13px; color:var(--muted);">
+        <strong>Notes:</strong>
+        <ul style="margin:6px 0 0 18px; padding:0;">
+          <li>Font is loaded locally using the <code>FontFace</code> API when available for better reliability.</li>
+          <li>Canvas size matches the uploaded image resolution.</li>
+          <li>Everything runs in your browser; no files uploaded to a server.</li>
+        </ul>
+      </div>
+    </aside>
+
+    <main class="canvas-wrap panel">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <strong>Preview</strong>
+        <span class="note" id="metaNote">No image loaded</span>
+      </div>
+      <div class="canvas-area" id="canvasArea">
+        <canvas id="mainCanvas" width="800" height="600" style="background:transparent;"></canvas>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center; justify-content:space-between;">
+        <div class="small">Canvas will match the base image's resolution when you upload it.</div>
+        <div>
+          <button id="fitBtn" class="btn secondary" title="Fit canvas to window">Fit to screen</button>
+        </div>
+      </div>
+    </main>
+
+  </div>
+  <script>
+    (function () {
+      // Elements
+      const fontFile = document.getElementById('fontFile');
+      const imageFile = document.getElementById('imageFile');
+      const textArea = document.getElementById('text');
+      const fontSize = document.getElementById('fontSize');
+      const fontSizeVal = document.getElementById('fontSizeVal');
+      const lineHeight = document.getElementById('lineHeight');
+      const lineHeightVal = document.getElementById('lineHeightVal');
+      const textColor = document.getElementById('textColor');
+      const opacity = document.getElementById('opacity');
+      const xOffset = document.getElementById('xOffset');
+      const xOffsetVal = document.getElementById('xOffsetVal');
+      const yOffset = document.getElementById('yOffset');
+      const yOffsetVal = document.getElementById('yOffsetVal');
+      const maxWidthPct = document.getElementById('maxWidthPct');
+      const maxWidthPctVal = document.getElementById('maxWidthPctVal');
+      const renderBtn = document.getElementById('renderBtn');
+      const downloadBtn = document.getElementById('downloadBtn');
+      const mainCanvas = document.getElementById('mainCanvas');
+      const ctx = mainCanvas.getContext('2d', { alpha: true });
+      const metaNote = document.getElementById('metaNote');
+      const fitBtn = document.getElementById('fitBtn');
+      const jitterPos = document.getElementById('jitterPos');
+      const jitterPosVal = document.getElementById('jitterPosVal');
+      const jitterSize = document.getElementById('jitterSize');
+      const jitterSizeVal = document.getElementById('jitterSizeVal');
+      const jitterAngle = document.getElementById('jitterAngle');
+      const jitterAngleVal = document.getElementById('jitterAngleVal');
+
+      // State
+      let baseImage = null;
+      let fontBlobURL = null;
+      let currentFontName = 'UserHandwriting';
+      let baseImageURL = null;
+      let loadedFontFace = null; // store FontFace instance if used
+
+      // initial UI values
+      fontSizeVal.textContent = fontSize.value + 'px';
+      lineHeightVal.textContent = parseFloat(lineHeight.value).toFixed(2);
+      xOffsetVal.textContent = xOffset.value;
+      yOffsetVal.textContent = yOffset.value;
+      maxWidthPctVal.textContent = maxWidthPct.value + '%';
+
+    // Load default base image if user didn't upload one
+    function loadDefaultBaseImage() {
+      const img = new Image();
+      img.src = "base.jpeg"; // or base.png — either is fine
+      img.crossOrigin = "anonymous";
+
+      img.onload = function () {
+        baseImage = img;
+        mainCanvas.width = img.naturalWidth;
+        mainCanvas.height = img.naturalHeight;
+        metaNote.textContent = `Default base loaded (${img.naturalWidth}×${img.naturalHeight})`;
+
+        render();
+        fitCanvasToScreen();
+      };
+
+      img.onerror = function () {
+        console.warn("Default base image could not be loaded.");
+      };
+    }
+
+      // Utility: revoke previous blob URLs when replaced
+      function revokeIfExists(url) {
+        if (!url) return;
+        try { URL.revokeObjectURL(url); } catch (e) { }
+      }
+
+      // Helper: determine format string for FontFace/@font-face
+      function detectFontFormat(filename) {
+        const n = (filename || '').toLowerCase();
+        if (n.endsWith('.otf')) return 'opentype';
+        if (n.endsWith('.ttf')) return 'truetype';
+        if (n.endsWith('.woff')) return 'woff';
+        if (n.endsWith('.woff2')) return 'woff2';
+        return 'opentype';
+      }
+
+      // Load font using FontFace API when available; fall back to dynamic @font-face
+      async function installFontFromFile(file) {
+        if (!file) return Promise.reject('No font file');
+
+        revokeIfExists(fontBlobURL);
+        fontBlobURL = URL.createObjectURL(file);
+
+        // unique name to avoid collisions
+        currentFontName = 'UserHandwriting_' + Date.now();
+
+        const format = detectFontFormat(file.name);
+        const src = `url('${fontBlobURL}') format('${format}')`;
+
+        // If FontFace API is available, use it (more reliable). Otherwise add a style element.
+        if (window.FontFace) {
+          try {
+            // If a previous FontFace was added, remove it from document.fonts (no native remove; we rely on GC and unique names)
+            const fontFace = new FontFace(currentFontName, src, { style: 'normal', weight: '400' });
+            // start loading
+            await fontFace.load();
+            document.fonts.add(fontFace);
+            loadedFontFace = fontFace;
+            return true;
+          } catch (err) {
+            console.error('FontFace API load error:', err);
+            // fallthrough to @font-face fallback
+          }
+        }
+
+        // Fallback: inject @font-face rule using a style tag
+        const styleId = 'dynamic-font-style';
+        let styleEl = document.getElementById(styleId);
+        if (!styleEl) {
+          styleEl = document.createElement('style');
+          styleEl.id = styleId;
+          document.head.appendChild(styleEl);
+        }
+        styleEl.textContent = `@font-face { font-family: '${currentFontName}'; src: ${src}; font-weight: normal; font-style: normal; font-display: swap; }`;
+
+        // Use document.fonts.load to wait for it
+        try {
+          await document.fonts.load(`12px '${currentFontName}'`);
+          // small delay to ensure rendering engines pick it up
+          await new Promise(r => setTimeout(r, 40));
+          return true;
+        } catch (err) {
+          console.error('Fallback font load error:', err);
+          return Promise.reject('Font failed to load');
+        }
+      }
+
+      // Load base image
+      function installBaseImageFromFile(file) {
+        if (!file) return Promise.reject('No image file');
+        revokeIfExists(baseImageURL);
+        baseImageURL = URL.createObjectURL(file);
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          // local files don't require CORS, but set anonymous to be safe if browsers vary
+          img.crossOrigin = 'anonymous';
+          img.onload = function () {
+            baseImage = img;
+            // Resize canvas to image's natural resolution
+            mainCanvas.width = img.naturalWidth;
+            mainCanvas.height = img.naturalHeight;
+            metaNote.textContent = `Image: ${img.naturalWidth} × ${img.naturalHeight}px`;
+            resolve(img);
+          };
+          img.onerror = function (e) {
+            reject('Failed to load image');
+          };
+          img.src = baseImageURL;
+        });
+      }
+
+      // Text wrapping and rendering
+      function wrapText(ctx, text, maxWidthPx) {
+        const paragraphs = text.split('\n');
+        const lines = [];
+        for (let p = 0; p < paragraphs.length; p++) {
+          const para = paragraphs[p].trimEnd();
+          if (para.length === 0) {
+            // preserve an empty line
+            lines.push('');
+            continue;
+          }
+          const words = para.split(/\s+/);
+          let line = '';
+          for (let n = 0; n < words.length; n++) {
+            const word = words[n];
+            const testLine = line.length ? (line + ' ' + word) : word;
+            const metric = ctx.measureText(testLine);
+            const testWidth = metric.width;
+            if (testWidth > maxWidthPx && line.length > 0) {
+              lines.push(line);
+              line = word;
+            } else {
+              line = testLine;
+            }
+          }
+          if (line.length) lines.push(line);
+        }
+        return lines;
+      }
+
+      // Render function
+      async function render() {
+        if (!baseImage) {
+          // clear canvas
+          ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
+          metaNote.textContent = 'No image loaded';
+          return;
+        }
+
+        // Ensure font loaded: try document.fonts.ready to be safer
+        try {
+          // if a FontFace was added via API it's already in document.fonts
+          await document.fonts.ready;
+        } catch (e) {
+          console.warn('document.fonts.ready failed or timed out:', e);
+        }
+
+        // Draw base image
+        ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+        ctx.drawImage(baseImage, 0, 0, mainCanvas.width, mainCanvas.height);
+
+        // Prepare text style
+        const fSize = parseFloat(fontSize.value);
+        const lh = parseFloat(lineHeight.value);
+        const xOff = parseFloat(xOffset.value);
+        const yOff = parseFloat(yOffset.value);
+        const maxWidth = Math.max(10, (parseFloat(maxWidthPct.value) / 100) * mainCanvas.width);
+        const hex = textColor.value;
+        const alpha = parseFloat(opacity.value);
+
+        ctx.save();
+        ctx.fillStyle = hex;
+        // apply alpha separately so color picker remains intact
+        ctx.globalAlpha = alpha;
+        ctx.textBaseline = 'alphabetic';
+        ctx.font = `${fSize}px '${currentFontName}', sans-serif`;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        // Slight performance tweak: use measureText().actualBoundingBoxAscent if available
+        const measure = ctx.measureText('M');
+        let ascent = (measure.actualBoundingBoxAscent || fSize * 0.8);
+        let descent = (measure.actualBoundingBoxDescent || fSize * 0.2);
+        const lineHeightPx = fSize * lh;
+
+        // Wrap text
+        const rawText = textArea.value || '';
+        const lines = wrapText(ctx, rawText, maxWidth);
+
+        // Draw lines
+        // we interpret yOffset as top offset from top of canvas to first baseline
+        let cursorY = yOff + ascent; // baseline location for first line
+        const startX = xOff;
+
+        // If any lines fall outside canvas, they are simply clipped
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+
+          if (line === '') {
+            cursorY += lineHeightPx;
+            continue;
+          }
+
+          // jitter intensities from sliders
+          const jp = parseFloat(jitterPos.value);   // position jitter
+          const js = parseFloat(jitterSize.value);  // font-size jitter
+          const ja = parseFloat(jitterAngle.value) * (Math.PI / 180); // degrees → radians
+
+          const lineStartShift = (Math.random() - 0.5) * (jp * 2);
+          let cursorX = startX + lineStartShift;
+
+          for (let c = 0; c < line.length; c++) {
+            const char = line[c];
+
+            const jitterX = (Math.random() - 0.5) * jp;
+            const jitterY = (Math.random() - 0.5) * jp;
+            const sizeJitter = (Math.random() - 0.5) * js;
+            const angle = (Math.random() - 0.5) * ja;
+
+            const charFontSize = fSize + sizeJitter;
+            ctx.font = `${charFontSize}px '${currentFontName}', sans-serif`;
+
+            const charWidth = ctx.measureText(char).width;
+
+            ctx.save();
+            ctx.translate(cursorX + jitterX, cursorY + jitterY);
+            ctx.rotate(angle);
+            ctx.fillText(char, 0, 0);
+            ctx.restore();
+
+            cursorX += charWidth;
+          }
+
+          cursorY += lineHeightPx;
+        }
+
+        ctx.restore();
+      }
+
+      // Download function
+      function downloadPNG() {
+        if (!baseImage) {
+          alert('Please upload a base image first.');
+          return;
+        }
+        try {
+          const dataURL = mainCanvas.toDataURL('image/png');
+          const link = document.createElement('a');
+          link.href = dataURL;
+          const safeName = (document.title || 'handwritten').replace(/\s+/g, '_').toLowerCase();
+          link.download = safeName + '.png';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } catch (e) {
+          console.error('Download failed', e);
+          alert('Download failed: ' + e.message);
+        }
+      }
+
+      // Fit canvas into visible area (scale CSS only)
+      function fitCanvasToScreen() {
+        const area = document.getElementById('canvasArea');
+        mainCanvas.style.maxWidth = '100%';
+        mainCanvas.style.height = 'auto';
+        setTimeout(() => mainCanvas.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+      }
+
+      // Event wiring
+      fontFile.addEventListener('change', function (e) {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        installFontFromFile(f).then(() => {
+          metaNote.textContent = metaNote.textContent + ' · Font loaded';
+          render();
+        }).catch(err => {
+          alert('Failed to load font: ' + err);
+        });
+      });
+
+      imageFile.addEventListener('change', function (e) {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        installBaseImageFromFile(f).then(() => {
+          render();
+          fitCanvasToScreen();
+        }).catch(err => {
+          alert('Failed to load image: ' + err);
+        });
+      });
+
+      // update labels on sliders
+      fontSize.addEventListener('input', function () { fontSizeVal.textContent = fontSize.value + 'px'; });
+      lineHeight.addEventListener('input', function () { lineHeightVal.textContent = parseFloat(lineHeight.value).toFixed(2); });
+      xOffset.addEventListener('input', function () { xOffsetVal.textContent = xOffset.value; });
+      yOffset.addEventListener('input', function () { yOffsetVal.textContent = yOffset.value; });
+      maxWidthPct.addEventListener('input', function () { maxWidthPctVal.textContent = maxWidthPct.value + '%'; });
+
+      // optional autosave: re-render when typing stops for a moment (debounce)
+      let typingTimer = null;
+      textArea.addEventListener('input', function () {
+        if (typingTimer) clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+          render();
+        }, 600);
+      });
+
+      // Re-render button
+      renderBtn.addEventListener('click', function () { render(); });
+
+      // Download button
+      downloadBtn.addEventListener('click', function () { downloadPNG(); });
+
+      // Re-render automatically when sliders change
+      const controls = [fontSize, lineHeight, textColor, opacity, xOffset, yOffset, maxWidthPct];
+      controls.forEach(ctrl => ctrl.addEventListener('input', () => render()));
+
+      fitBtn.addEventListener('click', fitCanvasToScreen);
+
+      loadDefaultBaseImage();
+
+      // Cleanup on page unload: revoke blob URLs
+      window.addEventListener('beforeunload', function () {
+        revokeIfExists(fontBlobURL);
+        revokeIfExists(baseImageURL);
+      });
+
+      // Accessibility: allow pressing Ctrl+Enter to render
+      textArea.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          render();
+        }
+      });
+
+      jitterPos.addEventListener('input', function () {
+        jitterPosVal.textContent = jitterPos.value + 'px';
+        render();
+      });
+      jitterSize.addEventListener('input', function () {
+        jitterSizeVal.textContent = jitterSize.value + 'px';
+        render();
+      });
+      jitterAngle.addEventListener('input', function () {
+        jitterAngleVal.textContent = jitterAngle.value + '°';
+        render();
+      });
+
+    })();
+  </script>
+</body>
+
+</html>
