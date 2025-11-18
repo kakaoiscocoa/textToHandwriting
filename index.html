@@ -556,11 +556,11 @@
                         continue;
                     }
 
-                    const lineJitterY = (Math.random() - 0.5) * parseFloat(lineJitterY.value);
-                    const lineJitterX = (Math.random() - 0.5) * parseFloat(lineJitterX.value);
+                    const lineJitterYValue = (Math.random() - 0.5) * parseFloat(lineJitterY.value);
+                    const lineJitterXValue = (Math.random() - 0.5) * parseFloat(lineJitterX.value);
 
-                    let cursorX = startX + lineJitterX;
-                    const baseline = cursorY + lineJitterY;
+                    let cursorX = startX + lineJitterXValue;
+                    const baseline = cursorY + lineJitterYValue;
 
                     for (let c = 0; c < line.length; c++) {
                         const char = line[c];
