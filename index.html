@@ -551,33 +551,36 @@
                 // If any lines fall outside canvas, they are simply clipped
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
+                    if (!line) {
+                        cursorY += lineHeightPx; // preserve empty lines
+                        continue;
+                    }
 
-                    // jitter per line
-                    const jitterLineY = (Math.random() - 0.5) * parseFloat(lineJitterY.value);
+                    const lineJitterY = (Math.random() - 0.5) * parseFloat(lineJitterY.value);
+                    const lineJitterX = (Math.random() - 0.5) * parseFloat(lineJitterX.value);
 
-                    const lineBaseline = cursorY + jitterLineY;
-
-                    let cursorX = startX + (Math.random() - 0.5) * parseFloat(lineJitterX.value);
+                    let cursorX = startX + lineJitterX;
+                    const baseline = cursorY + lineJitterY;
 
                     for (let c = 0; c < line.length; c++) {
                         const char = line[c];
-                        const charJitterX = (Math.random() - 0.5) * parseFloat(jitterPos.value);
-                        const charJitterY = (Math.random() - 0.5) * parseFloat(jitterPos.value);
-                        const charSize = fSize + (Math.random() - 0.5) * parseFloat(jitterSize.value);
-                        const charAngle = (Math.random() - 0.5) * parseFloat(jitterAngle.value) * Math.PI / 180;
+                        const jitterX = (Math.random() - 0.5) * parseFloat(jitterPos.value);
+                        const jitterY = (Math.random() - 0.5) * parseFloat(jitterPos.value);
+                        const sizeJitter = (Math.random() - 0.5) * parseFloat(jitterSize.value);
+                        const angle = (Math.random() - 0.5) * parseFloat(jitterAngle.value) * Math.PI / 180;
 
                         ctx.save();
-                        ctx.font = `${charSize}px '${currentFontName}', sans-serif`;
-                        ctx.translate(cursorX + charJitterX, lineBaseline + charJitterY);
-                        ctx.rotate(charAngle);
+                        ctx.font = `${fSize + sizeJitter}px '${currentFontName}', sans-serif`;
+                        ctx.translate(cursorX + jitterX, baseline + jitterY);
+                        ctx.rotate(angle);
                         ctx.fillText(char, 0, 0);
                         cursorX += ctx.measureText(char).width;
                         ctx.restore();
                     }
 
-                    // move to next line
-                    cursorY += lineHeightPx;
+                    cursorY += lineHeightPx; // move to next line
                 }
+
 
             }
 
