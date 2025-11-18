@@ -553,6 +553,7 @@
 
                     let cursorX = startX + lineJitterXValue;
                     const baseline = cursorY + lineJitterYValue;
+                    let moveY = 0;
 
                     for (let c = 0; c < line.length; c++) {
                         const char = line[c];
@@ -560,14 +561,15 @@
                         const jitterY = (Math.random() - 0.5) * parseFloat(jitterPos.value);
                         const sizeJitter = (Math.random() - 0.5) * parseFloat(jitterSize.value);
                         const angle = (Math.random() - 0.5) * parseFloat(jitterAngle.value) * Math.PI / 180;
+                        
+                        moveY += jitterY;
 
                         ctx.save();
                         ctx.font = `${fSize + sizeJitter}px '${currentFontName}', sans-serif`;
-                        ctx.translate(cursorX, baseline);
+                        ctx.translate(cursorX, baseline + moveY);
                         ctx.rotate(angle);
                         ctx.fillText(char, 0, 0);
                         cursorX += ctx.measureText(char).width + jitterX;
-                        cursorY += jitterY;
                         ctx.restore();
                     }
 
