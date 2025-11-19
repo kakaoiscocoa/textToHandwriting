@@ -1,4 +1,5 @@
 <!doctype html>
+
 <html lang="en">
 
 <head>
@@ -176,11 +177,10 @@
     <div class="container">
         <aside class="panel" aria-labelledby="title">
             <h1 id="title">✍️ Handwritten Text Composer</h1>
-            <small>Upload handwriting fonts and a base image. Every character can use a random font.</small>
+            <small>Upload a handwriting font (.otf or .ttf) and a base image (notebook paper). Adjust text and export
+                PNG.</small><label>1) Upload handwriting font (.otf / .ttf)</label>
+            <input id="fontFile" type="file" multiple accept=".otf, .ttf, font/otf, font/ttf" />
 
-            <!-- MULTIPLE FONT UPLOAD -->
-            <label>1) Upload handwriting fonts (.otf / .ttf) — multiple supported</label>
-            <input id="fontFile" type="file" accept=".otf,.ttf,font/otf,font/ttf" multiple />
 
             <label>2) Upload base image (PNG / JPEG)</label>
             <input id="imageFile" type="file" accept="image/png, image/jpeg" />
@@ -188,15 +188,16 @@
             <label for="text">Text</label>
             <textarea id="text" rows="6"
                 style="width:100%; padding:8px; border-radius:8px; border:1px solid #e6eefc; resize:vertical;"
-                placeholder="Type your text here."></textarea>
+                placeholder="Type your text here. Use newlines (\n) to create paragraphs."></textarea>
+            <div class="note">Tip: paste text from another app. Newlines are preserved.</div>
 
-            <label>Font size</label>
+            <label>Font size <span class="small" id="fontSizeLabel"></span></label>
             <div class="control">
                 <input id="fontSize" type="range" min="12" max="120" value="36" />
                 <div class="val" id="fontSizeVal">36px</div>
             </div>
 
-            <label>Line height</label>
+            <label>Line height <span class="small" id="lineHeightLabel"></span></label>
             <div class="control">
                 <input id="lineHeight" type="range" min="0.8" max="2.2" step="0.01" value="1.2" />
                 <div class="val" id="lineHeightVal">1.20</div>
@@ -225,7 +226,6 @@
                 <input id="maxWidthPct" type="range" min="10" max="100" value="80" />
                 <div class="val" id="maxWidthPctVal">80%</div>
             </div>
-
             <label>Letter position jitter (px)</label>
             <div class="control">
                 <input id="jitterPos" type="range" min="0" max="4" step="0.1" value="2.5" />
@@ -260,6 +260,16 @@
                 <button id="renderBtn" class="btn">Re-render</button>
                 <button id="downloadBtn" class="btn secondary">Download PNG</button>
             </div>
+
+            <div style="margin-top:12px; font-size:13px; color:var(--muted);">
+                <strong>Notes:</strong>
+                <ul style="margin:6px 0 0 18px; padding:0;">
+                    <li>Font is loaded locally using the <code>FontFace</code> API when available for better
+                        reliability.</li>
+                    <li>Canvas size matches the uploaded image resolution.</li>
+                    <li>Everything runs in your browser; no files uploaded to a server.</li>
+                </ul>
+            </div>
         </aside>
 
         <main class="canvas-wrap panel">
@@ -271,15 +281,16 @@
                 <canvas id="mainCanvas" width="800" height="600" style="background:transparent;"></canvas>
             </div>
             <div style="display:flex; gap:10px; align-items:center; justify-content:space-between;">
-                <button id="fitBtn" class="btn secondary">Fit to screen</button>
+                <div class="small">Canvas will match the base image's resolution when you upload it.</div>
+                <div>
+                    <button id="fitBtn" class="btn secondary" title="Fit canvas to window">Fit to screen</button>
+                </div>
             </div>
         </main>
 
     </div>
-
     <script>
         (function () {
-
             // Elements
             const fontFile = document.getElementById('fontFile');
             const imageFile = document.getElementById('imageFile');
@@ -310,78 +321,32 @@
             const jitterAngleVal = document.getElementById('jitterAngleVal');
             const lineJitterX = document.getElementById('lineJitterX');
             const lineJitterXVal = document.getElementById('lineJitterXVal');
+
             const lineJitterY = document.getElementById('lineJitterY');
             const lineJitterYVal = document.getElementById('lineJitterYVal');
 
-            // NEW: store multiple fonts here
-            let loadedFonts = [];
+            const lineJitterAngle = document.getElementById('lineJitterAngle');
+            const lineJitterAngleVal = document.getElementById('lineJitterAngleVal');
+
+
+            // State
             let baseImage = null;
+
+            // MULTI FONT SUPPORT
+            let loadedFonts = [];      // {name, blobUrl, fontFace}
+            let fontCount = 0;
+
             let baseImageURL = null;
+            let loadedFontFace = null; // store FontFace instance if used
 
-            loadDefaultBaseImage();
+            // initial UI values
+            fontSizeVal.textContent = fontSize.value + 'px';
+            lineHeightVal.textContent = parseFloat(lineHeight.value).toFixed(2);
+            xOffsetVal.textContent = xOffset.value;
+            yOffsetVal.textContent = yOffset.value;
+            maxWidthPctVal.textContent = maxWidthPct.value + '%';
 
-            function detectFontFormat(filename) {
-                filename = filename.toLowerCase();
-                if (filename.endsWith(".otf")) return "opentype";
-                if (filename.endsWith(".ttf")) return "truetype";
-                if (filename.endsWith(".woff")) return "woff";
-                if (filename.endsWith(".woff2")) return "woff2";
-                return "opentype";
-            }
-
-            async function installMultipleFonts(files) {
-
-                for (const file of files) {
-
-                    const blobURL = URL.createObjectURL(file);
-                    const fontName = "UserFont_" + Date.now() + "_" + Math.floor(Math.random() * 1e6);
-                    const format = detectFontFormat(file.name);
-                    const src = `url('${blobURL}') format('${format}')`;
-
-                    try {
-                        const ff = new FontFace(fontName, src);
-                        await ff.load();
-                        document.fonts.add(ff);
-                        loadedFonts.push(fontName);
-                    } catch {
-                        // fallback
-                        let style = document.getElementById("dynamic-font-style");
-                        if (!style) {
-                            style = document.createElement("style");
-                            style.id = "dynamic-font-style";
-                            document.head.appendChild(style);
-                        }
-
-                        style.textContent += `
-@font-face {
-  font-family: '${fontName}';
-  src: ${src};
-}
-`;
-                        await document.fonts.load(`12px '${fontName}'`);
-                        loadedFonts.push(fontName);
-                    }
-                }
-            }
-
-            function installBaseImageFromFile(file) {
-                return new Promise((resolve, reject) => {
-                    const url = URL.createObjectURL(file);
-                    const img = new Image();
-                    img.crossOrigin = "anonymous";
-                    img.onload = () => {
-                        baseImage = img;
-                        mainCanvas.width = img.naturalWidth;
-                        mainCanvas.height = img.naturalHeight;
-                        metaNote.textContent = `Image: ${img.naturalWidth}×${img.naturalHeight}`;
-                        resolve(img);
-                    };
-                    img.onerror = reject;
-                    img.src = url;
-                    baseImageURL = url;
-                });
-            }
-
+            // Load default base image if user didn't upload one
             function loadDefaultBaseImage() {
                 const img = new Image();
                 img.src = "base.jpeg"; // or base.png — either is fine
@@ -402,142 +367,351 @@
                 };
             }
 
-            function wrapText(ctx, text, maxdth) {
-                const lines = [];
-                const paragraphs = text.split("\n");
+            // Utility: revoke previous blob URLs when replaced
+            function revokeIfExists(url) {
+                if (!url) return;
+                try { URL.revokeObjectURL(url); } catch (e) { }
+            }
 
-                for (const para of paragraphs) {
-                    if (para.trim() === "") {
-                        lines.push("");
+            // Helper: determine format string for FontFace/@font-face
+            function detectFontFormat(filename) {
+                const n = (filename || '').toLowerCase();
+                if (n.endsWith('.otf')) return 'opentype';
+                if (n.endsWith('.ttf')) return 'truetype';
+                if (n.endsWith('.woff')) return 'woff';
+                if (n.endsWith('.woff2')) return 'woff2';
+                return 'opentype';
+            }
+
+            // Load font using FontFace API when available; fall back to dynamic @font-face
+            async function installFontFromFile(file) {
+                return new Promise(async (resolve, reject) => {
+
+                    const blobUrl = URL.createObjectURL(file);
+                    fontCount++;
+                    const fontName = `UserFont_${fontCount}`;
+
+                    const ext = file.name.toLowerCase();
+                    let format = 'opentype';
+                    if (ext.endsWith('.ttf')) format = 'truetype';
+                    if (ext.endsWith('.woff')) format = 'woff';
+                    if (ext.endsWith('.woff2')) format = 'woff2';
+
+                    const src = `url('${blobUrl}') format('${format}')`;
+
+                    let fontFace;
+
+                    try {
+                        if (window.FontFace) {
+                            fontFace = new FontFace(fontName, src, { style: 'normal', weight: '400' });
+                            await fontFace.load();
+                            document.fonts.add(fontFace);
+                        } else {
+                            const styleEl = document.createElement('style');
+                            styleEl.textContent = `
+                @font-face {
+                    font-family: '${fontName}';
+                    src: ${src};
+                }`;
+                            document.head.appendChild(styleEl);
+                            await document.fonts.load(`12px ${fontName}`);
+                        }
+
+                        loadedFonts.push({
+                            name: fontName,
+                            blobUrl,
+                            fontFace
+                        });
+
+                        resolve(fontName);
+
+                    } catch (err) {
+                        reject(err);
+                    }
+                });
+            }
+
+
+            // Load base image
+            function installBaseImageFromFile(file) {
+                if (!file) return Promise.reject('No image file');
+                revokeIfExists(baseImageURL);
+                baseImageURL = URL.createObjectURL(file);
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    // local files don't require CORS, but set anonymous to be safe if browsers vary
+                    img.crossOrigin = 'anonymous';
+                    img.onload = function () {
+                        baseImage = img;
+                        // Resize canvas to image's natural resolution
+                        mainCanvas.width = img.naturalWidth;
+                        mainCanvas.height = img.naturalHeight;
+                        metaNote.textContent = `Image: ${img.naturalWidth} × ${img.naturalHeight}px`;
+                        resolve(img);
+                    };
+                    img.onerror = function (e) {
+                        reject('Failed to load image');
+                    };
+                    img.src = baseImageURL;
+                });
+            }
+
+            // Text wrapping and rendering
+            function wrapText(ctx, text, maxWidthPx) {
+                const paragraphs = text.split('\n');
+                const lines = [];
+                for (let p = 0; p < paragraphs.length; p++) {
+                    const para = paragraphs[p].trimEnd();
+                    if (para.length === 0) {
+                        // preserve an empty line
+                        lines.push('');
                         continue;
                     }
-
                     const words = para.split(/\s+/);
-                    let line = "";
-
-                    for (let w of words) {
-                        const testLine = line ? line + " " + w : w;
-                        const width = ctx.measureText(testLine).width;
-
-                        if (width > maxWidth && line) {
+                    let line = '';
+                    for (let n = 0; n < words.length; n++) {
+                        const word = words[n];
+                        const testLine = line.length ? (line + ' ' + word) : word;
+                        const metric = ctx.measureText(testLine);
+                        const testWidth = metric.width;
+                        if (testWidth > maxWidthPx && line.length > 0) {
                             lines.push(line);
-                            line = w;
+                            line = word;
                         } else {
                             line = testLine;
                         }
                     }
-
-                    lines.push(line);
+                    if (line.length) lines.push(line);
                 }
-
                 return lines;
             }
 
+            // Render function
             async function render() {
-
                 if (!baseImage) {
+                    // clear canvas
                     ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
+                    metaNote.textContent = 'No image loaded';
                     return;
                 }
 
+                // Ensure font loaded: try document.fonts.ready to be safer
+                try {
+                    // if a FontFace was added via API it's already in document.fonts
+                    await document.fonts.ready;
+                } catch (e) {
+                    console.warn('document.fonts.ready failed or timed out:', e);
+                }
+
+                // Draw base image
                 ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
                 ctx.drawImage(baseImage, 0, 0, mainCanvas.width, mainCanvas.height);
 
+                // Prepare text style
                 const fSize = parseFloat(fontSize.value);
                 const lh = parseFloat(lineHeight.value);
                 const xOff = parseFloat(xOffset.value);
                 const yOff = parseFloat(yOffset.value);
-                const maxWidth = (parseFloat(maxWidthPct.value) / 100) * mainCanvas.width;
+                const maxWidth = Math.max(10, (parseFloat(maxWidthPct.value) / 100) * mainCanvas.width);
+                const hex = textColor.value;
+                const alpha = parseFloat(opacity.value);
 
-                ctx.fillStyle = textColor.value;
-                ctx.globalAlpha = parseFloat(opacity.value);
-                ctx.textBaseline = "alphabetic";
+                ctx.save();
+                ctx.fillStyle = hex;
+                // apply alpha separately so color picker remains intact
+                ctx.globalAlpha = alpha;
+                ctx.textBaseline = 'alphabetic';
 
-                ctx.font = `${fSize}px sans-serif`;
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
 
-                const rawText = textArea.value;
+                // Slight performance tweak: use measureText().actualBoundingBoxAscent if available
+                const measure = ctx.measureText('M');
+                let ascent = (measure.actualBoundingBoxAscent || fSize * 0.8);
+                let descent = (measure.actualBoundingBoxDescent || fSize * 0.2);
+                const lineHeightPx = fSize * lh;
+
+                // Wrap text
+                const rawText = textArea.value || '';
                 const lines = wrapText(ctx, rawText, maxWidth);
 
-                let y = yOff + fSize;
+                // Draw lines
+                // we interpret yOffset as top offset from top of canvas to first baseline
+                let cursorY = yOff + ascent; // baseline location for first line
+                const startX = xOff;
 
-                for (let line of lines) {
-
-                    const lineXJ = (Math.random() - 0.5) * parseFloat(lineJitterX.value);
-                    const lineYJ = (Math.random() - 0.5) * parseFloat(lineJitterY.value);
-
-                    let x = xOff + lineXJ;
-                    let yActual = y + lineYJ;
-                    let accumulatedY = 0;
-
-                    for (let ch of line) {
-
-                        const posJ = (Math.random() - 0.5) * parseFloat(jitterPos.value);
-                        const sizeJ = (Math.random() - 0.5) * parseFloat(jitterSize.value);
-                        const angle = (Math.random() - 0.5) * parseFloat(jitterAngle.value) * Math.PI / 180;
-                        const yCharJ = (Math.random() - 0.5) * (parseFloat(jitterPos.value) / 6);
-                        accumulatedY += yCharJ;
-
-                        // pick a random font
-                        const chosenFont = loadedFonts.length
-                            ? loadedFonts[Math.floor(Math.random() * loadedFonts.length)]
-                            : "sans-serif";
-
-                        ctx.save();
-                        ctx.font = `${fSize + sizeJ}px '${chosenFont}', sans-serif`;
-                        ctx.translate(x, yActual + accumulatedY);
-                        ctx.rotate(angle);
-                        ctx.fillText(ch, 0, 0);
-                        const w = ctx.measureText(ch).width;
-                        ctx.restore();
-
-                        x += w + posJ;
+                // If any lines fall outside canvas, they are simply clipped
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (!line) {
+                        cursorY += lineHeightPx; // preserve empty lines
+                        continue;
                     }
 
-                    y += fSize * lh;
+                    const lineJitterYValue = (Math.random() - 0.5) * parseFloat(lineJitterY.value);
+                    const lineJitterXValue = (Math.random() - 0.5) * parseFloat(lineJitterX.value);
+
+                    let cursorX = startX + lineJitterXValue;
+                    const baseline = cursorY + lineJitterYValue;
+                    let moveY = 0;
+
+                    for (let c = 0; c < line.length; c++) {
+                        const char = line[c];
+                        const jitterX = (Math.random() - 0.5) * parseFloat(jitterPos.value);
+                        const jitterY = (Math.random() - 0.5) * parseFloat(jitterPos.value) / 6.0;
+                        const sizeJitter = (Math.random() - 0.5) * parseFloat(jitterSize.value);
+                        const angle = (Math.random() - 0.5) * parseFloat(jitterAngle.value) * Math.PI / 180;
+
+                        moveY += jitterY;
+
+                        ctx.save();
+
+                        // Pick one of the loaded fonts at random
+                        let selectedFont = "sans-serif";
+                        if (loadedFonts.length > 0) {
+                            selectedFont = loadedFonts[Math.floor(Math.random() * loadedFonts.length)].name;
+                        }
+
+                        // Build per-character font including size jitter
+                        ctx.font = `${fSize + sizeJitter}px '${selectedFont}', sans-serif`;
+
+                        ctx.translate(cursorX, baseline + moveY);
+                        ctx.rotate(angle);
+
+                        ctx.fillText(char, 0, 0);
+
+                        cursorX += ctx.measureText(char).width + jitterX;
+                        ctx.restore();
+
+                    }
+
+                    cursorY += lineHeightPx; // move to next line
+                }
+
+
+            }
+
+            // Download function
+            function downloadPNG() {
+                if (!baseImage) {
+                    alert('Please upload a base image first.');
+                    return;
+                }
+                try {
+                    const dataURL = mainCanvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.href = dataURL;
+                    const safeName = (document.title || 'handwritten').replace(/\s+/g, '_').toLowerCase();
+                    link.download = safeName + '.png';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch (e) {
+                    console.error('Download failed', e);
+                    alert('Download failed: ' + e.message);
                 }
             }
 
-            function downloadPNG() {
-                const link = document.createElement("a");
-                link.href = mainCanvas.toDataURL("image/png");
-                link.download = "handwriting.png";
-                link.click();
-            }
-
+            // Fit canvas into visible area (scale CSS only)
             function fitCanvasToScreen() {
-                mainCanvas.style.maxWidth = "100%";
-                mainCanvas.style.height = "auto";
+                const area = document.getElementById('canvasArea');
+                mainCanvas.style.maxWidth = '100%';
+                mainCanvas.style.height = 'auto';
+                setTimeout(() => mainCanvas.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
             }
 
-            // === EVENT LISTENERS ===
-
-            fontFile.addEventListener("change", async (e) => {
+            // Event wiring
+            fontFile.addEventListener('change', function (e) {
                 const files = Array.from(e.target.files || []);
                 if (!files.length) return;
 
-                await installMultipleFonts(files);
-                metaNote.textContent = `Loaded ${loadedFonts.length} font(s)`;
+                Promise.all(files.map(f => installFontFromFile(f)))
+                    .then(() => {
+                        metaNote.textContent += ` · ${files.length} font(s) loaded`;
+                        render();
+                    })
+                    .catch(err => alert('Failed to load font: ' + err));
+            });
+
+
+            imageFile.addEventListener('change', function (e) {
+                const f = e.target.files && e.target.files[0];
+                if (!f) return;
+                installBaseImageFromFile(f).then(() => {
+                    render();
+                    fitCanvasToScreen();
+                }).catch(err => {
+                    alert('Failed to load image: ' + err);
+                });
+            });
+
+            // update labels on sliders
+            fontSize.addEventListener('input', function () { fontSizeVal.textContent = fontSize.value + 'px'; });
+            lineHeight.addEventListener('input', function () { lineHeightVal.textContent = parseFloat(lineHeight.value).toFixed(2); });
+            xOffset.addEventListener('input', function () { xOffsetVal.textContent = xOffset.value; });
+            yOffset.addEventListener('input', function () { yOffsetVal.textContent = yOffset.value; });
+            maxWidthPct.addEventListener('input', function () { maxWidthPctVal.textContent = maxWidthPct.value + '%'; });
+
+            // optional autosave: re-render when typing stops for a moment (debounce)
+            let typingTimer = null;
+            textArea.addEventListener('input', function () {
+                if (typingTimer) clearTimeout(typingTimer);
+                typingTimer = setTimeout(() => {
+                    render();
+                }, 600);
+            });
+
+            // Re-render button
+            renderBtn.addEventListener('click', function () { render(); });
+
+            // Download button
+            downloadBtn.addEventListener('click', function () { downloadPNG(); });
+
+            // Re-render automatically when sliders change
+            const controls = [fontSize, lineHeight, textColor, opacity, xOffset, yOffset, maxWidthPct];
+            controls.forEach(ctrl => ctrl.addEventListener('input', () => render()));
+
+            fitBtn.addEventListener('click', fitCanvasToScreen);
+
+            loadDefaultBaseImage();
+
+            // Cleanup on page unload: revoke blob URLs
+            window.addEventListener('beforeunload', function () {
+                revokeIfExists(fontBlobURL);
+                revokeIfExists(baseImageURL);
+            });
+
+            // Accessibility: allow pressing Ctrl+Enter to render
+            textArea.addEventListener('keydown', function (e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    render();
+                }
+            });
+
+            jitterPos.addEventListener('input', function () {
+                jitterPosVal.textContent = jitterPos.value + 'px';
+                render();
+            });
+            jitterSize.addEventListener('input', function () {
+                jitterSizeVal.textContent = jitterSize.value + 'px';
+                render();
+            });
+            jitterAngle.addEventListener('input', function () {
+                jitterAngleVal.textContent = jitterAngle.value + '°';
                 render();
             });
 
-            imageFile.addEventListener("change", (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                installBaseImageFromFile(file).then(() => render());
+            lineJitterX.addEventListener('input', function () {
+                lineJitterXVal.textContent = lineJitterX.value + 'px';
+                render();
             });
-
-            [
-                fontSize, lineHeight, textColor, opacity,
-                xOffset, yOffset, maxWidthPct,
-                jitterPos, jitterSize, jitterAngle,
-                lineJitterX, lineJitterY
-            ].forEach(el => el.addEventListener("input", () => render()));
-
-            textArea.addEventListener("input", () => setTimeout(render, 400));
-
-            renderBtn.addEventListener("click", render);
-            downloadBtn.addEventListener("click", downloadPNG);
-            fitBtn.addEventListener("click", fitCanvasToScreen);
+            lineJitterY.addEventListener('input', function () {
+                lineJitterYVal.textContent = lineJitterY.value + 'px';
+                render();
+            });
 
         })();
     </script>
