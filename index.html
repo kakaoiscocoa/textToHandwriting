@@ -318,6 +318,8 @@
             let baseImage = null;
             let baseImageURL = null;
 
+            loadDefaultBaseImage();
+
             function detectFontFormat(filename) {
                 filename = filename.toLowerCase();
                 if (filename.endsWith(".otf")) return "opentype";
@@ -380,7 +382,27 @@
                 });
             }
 
-            function wrapText(ctx, text, maxWidth) {
+            function loadDefaultBaseImage() {
+                const img = new Image();
+                img.src = "base.jpeg"; // or base.png — either is fine
+                img.crossOrigin = "anonymous";
+
+                img.onload = function () {
+                    baseImage = img;
+                    mainCanvas.width = img.naturalWidth;
+                    mainCanvas.height = img.naturalHeight;
+                    metaNote.textContent = `Default base loaded (${img.naturalWidth}×${img.naturalHeight})`;
+
+                    render();
+                    fitCanvasToScreen();
+                };
+
+                img.onerror = function () {
+                    console.warn("Default base image could not be loaded.");
+                };
+            }
+
+            function wrapText(ctx, text, maxdth) {
                 const lines = [];
                 const paragraphs = text.split("\n");
 
